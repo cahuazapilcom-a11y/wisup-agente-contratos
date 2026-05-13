@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      font-size: 11pt;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      text-align: center;
+      font-size: 13pt;
+      margin-bottom: 20px;
+    }
+    h2 {
+      font-size: 11pt;
+      margin-top: 18px;
+      margin-bottom: 6px;
+    }
+    p, li {
+      text-align: justify;
+      line-height: 1.6;
+      margin: 6px 0;
+    }
+    ul { margin: 6px 0 6px 20px; }
+    .firma-bloque {
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .firma-columna {
+      width: 45%;
+    }
+    .firma-linea {
+      border-top: 1px solid #000;
+      margin-top: 40px;
+      margin-bottom: 4px;
+    }
+    /* Anexo A */
+    .page-break { page-break-before: always; }
+    table.cronograma {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+    }
+    table.cronograma th, table.cronograma td {
+      border: 1px solid #555;
+      padding: 5px 8px;
+      text-align: center;
+      font-size: 10pt;
+    }
+    table.cronograma th { background-color: #dce6f1; }
+    table.resumen {
+      width: 60%;
+      border-collapse: collapse;
+      margin: 10px auto;
+    }
+    table.resumen td {
+      border: 1px dashed #888;
+      padding: 4px 10px;
+      font-size: 10pt;
+    }
+    .titulo-azul {
+      color: #1f4e79;
+      font-weight: bold;
+      text-align: center;
+      font-size: 12pt;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Contrato de Facilidades de Pago</h1>
+
+  <p>
+    Conste por el presente documento, el Contrato de Facilidades de Pago, que celebran de una parte
+    <strong>{{wise_razon_social}}</strong>, a la que en adelante se le denominará <strong>WISE UP</strong>,
+    con R.U.C. N° {{wise_ruc}}, con domicilio legal en {{wise_domicilio}},
+    debidamente representada por su Apoderado <strong>{{wise_representante}}</strong>,
+    identificado con D.N.I. N° {{wise_dni_rep}},
+    facultado según poder inscrito en el asiento {{wise_asiento}} de la partida {{wise_partida}}
+    del Registro de Personas Jurídicas de la Oficina Registral de {{wise_oficina_registral}},
+    y de la otra parte el(a) Sr.(ta.) <strong>{{nombre_estudiante}}</strong>,
+    identificado(a) con DNI N° <strong>{{dni_estudiante}}</strong>,
+    quien señala como domicilio para los efectos de este contrato en {{domicilio_estudiante}},
+    con teléfono móvil N° {{telefono_estudiante}},
+    con correo electrónico {{email_estudiante}},
+    a quien en adelante se le denominará <strong>EL(A) ESTUDIANTE</strong>,
+    en los términos y condiciones de las cláusulas siguientes:
+  </p>
+
+  <h2>CONSIDERACIONES</h2>
+  <ul>
+    <li>
+      Que EL ESTUDIANTE ha solicitado a WISE UP facilidades de pago para la adquisición del kit de
+      material didáctico correspondiente al programa de enseñanza del idioma inglés brindado por WISE UP.
+    </li>
+    <li>
+      Que WISE UP ha proporcionado a EL ESTUDIANTE información clara, suficiente, veraz y oportuna
+      respecto de las condiciones económicas, financieras y operativas aplicables a las facilidades de
+      pago otorgadas.
+    </li>
+    <li>
+      Que EL ESTUDIANTE declara haber recibido y revisado la información del contrato de facilidades de
+      pago aplicables al presente financiamiento.
+    </li>
+    <li>
+      Que EL ESTUDIANTE manifiesta conocer la metodología educativa desarrollada por WISE UP, así como
+      las características y condiciones del programa académico contratado, reconociendo además la
+      necesidad de adquirir el material didáctico oficial y exclusivo requerido para el adecuado
+      desarrollo del programa.
+    </li>
+  </ul>
+
+  <p>En atención a lo expuesto, las partes acuerdan celebrar el presente Contrato bajo las siguientes cláusulas:</p>
+
+  <h2>CLÁUSULA PRIMERA: OBJETO DEL CONTRATO</h2>
+  <p>
+    Por medio del presente Contrato, WISE UP otorga a favor de EL ESTUDIANTE una facilidad de pago de
+    naturaleza comercial destinada exclusivamente al financiamiento del kit de material didáctico
+    correspondiente al programa de enseñanza del idioma inglés contratado por EL ESTUDIANTE.
+  </p>
+  <p>
+    El monto total financiado asciende a la suma de
+    <strong>S/ {{monto_financiado}} ({{monto_financiado_letras}})</strong>,
+    conforme a las condiciones establecidas en el presente documento y su cronograma de pagos adjunto.
+  </p>
+
+  <h2>CLÁUSULA SEGUNDA: VALOR DEL MATERIAL DIDÁCTICO Y CONDICIONES DE PAGO</h2>
+  <p>
+    El valor total del kit de material didáctico asciende a la suma de
+    <strong>S/ {{wise_monto_kit}} ({{monto_kit_letras}})</strong>.
+  </p>
+  <p>
+    EL ESTUDIANTE declara haber efectuado una cuota inicial equivalente al 20% del valor total,
+    ascendente a <strong>S/ {{cuota_inicial_monto}} ({{cuota_inicial_letras}})</strong>,
+    quedando un saldo financiado de <strong>S/ {{monto_financiado}} ({{monto_financiado_letras}})</strong>.
+  </p>
+  <p>
+    El saldo financiado será cancelado en <strong>{{numero_cuotas}}</strong> cuotas mensuales y
+    consecutivas de <strong>S/ {{cuota_mensual}} ({{cuota_mensual_letras}})</strong>,
+    conforme al cronograma de pagos adjunto <strong>(Anexo A)</strong>, el cual forma parte integrante
+    del presente Contrato.
+  </p>
+  <p>
+    EL ESTUDIANTE se obliga a cumplir estrictamente con las fechas y montos establecidos en el
+    cronograma de pagos <strong>(Anexo A)</strong>.
+  </p>
+
+  <h2>CLÁUSULA TERCERA: FORMA Y LUGAR DE PAGO</h2>
+  <p>
+    Todos los pagos deberán efectuarse únicamente mediante depósito o transferencia bancaria a las
+    siguientes cuentas de titularidad de {{wise_razon_social}}:
+  </p>
+  <p>
+    {{wise_banco}}<br/>
+    Cuenta Corriente MN N.° {{wise_cuenta_bcp}}<br/>
+    Código de Cuenta Interbancario (CCI): {{wise_cci}}
+  </p>
+  <p>
+    WISE UP no reconocerá pagos realizados en cuentas distintas a las previamente señaladas,
+    ni pagos efectuados a terceros no autorizados.
+  </p>
+
+  <h2>CLÁUSULA CUARTA: DECLARACIONES Y OBLIGACIONES DEL ESTUDIANTE</h2>
+  <p>EL ESTUDIANTE declara expresamente:</p>
+  <ul>
+    <li>Que la información proporcionada a WISE UP es verdadera y vigente.</li>
+    <li>Que cuenta con la capacidad económica suficiente para cumplir con las obligaciones asumidas mediante el presente Contrato.</li>
+    <li>Que acepta el plan de pagos establecido y se compromete a cumplirlo íntegramente sin interrupciones ni retrasos.</li>
+    <li>Que conoce y acepta que el incumplimiento de las obligaciones de pago generará la exigibilidad inmediata de las cuotas vencidas y demás acciones que correspondan conforme a ley.</li>
+  </ul>
+
+  <h2>CLÁUSULA QUINTA: INCUMPLIMIENTO Y EXIGIBILIDAD</h2>
+  <p>
+    En caso de incumplimiento en el pago de cualquiera de las cuotas pactadas, y transcurridos
+    <strong>cinco (5) días calendario</strong> desde la fecha de vencimiento respectiva sin que
+    EL ESTUDIANTE haya regularizado el pago correspondiente, WISE UP podrá declarar vencido el plazo
+    del financiamiento y exigir el pago inmediato del saldo total pendiente de cancelación.
+  </p>
+  <p>
+    Asimismo, WISE UP podrá adoptar las acciones administrativas, extrajudiciales y/o legales que
+    resulten pertinentes para la recuperación de la deuda, conforme a la legislación peruana vigente.
+  </p>
+
+  <h2>CLÁUSULA SEXTA: MODIFICACIONES</h2>
+  <p>
+    Cualquier modificación, ampliación o variación de las condiciones del presente Contrato deberá
+    constar por escrito y contar con la firma de ambas partes para su validez.
+  </p>
+
+  <h2>CLÁUSULA SÉTIMA: LEGISLACIÓN APLICABLE Y JURISDICCIÓN</h2>
+  <p>
+    El presente Contrato se rige por las disposiciones del Código Civil peruano y demás normas
+    aplicables de la legislación de la República del Perú.
+  </p>
+  <p>
+    Las partes acuerdan someter cualquier controversia derivada de la interpretación, ejecución o
+    validez del presente Contrato a la jurisdicción de los jueces y tribunales del distrito judicial
+    de Lima.
+  </p>
+  <p>
+    En señal de conformidad, las partes suscriben el presente Contrato en la ciudad de Lima,
+    a los {{fecha_firma_larga}}.
+  </p>
+
+  <div class="firma-bloque">
+    <div class="firma-columna">
+      <p><strong>{{wise_razon_social}}</strong></p>
+      <p>Representante: {{wise_representante}}</p>
+      <p>D.N.I. N.° {{wise_dni_rep}}</p>
+      <div class="firma-linea"></div>
+      <p>Firma</p>
+    </div>
+    <div class="firma-columna">
+      <p><strong>EL ESTUDIANTE</strong></p>
+      <p>{{nombre_estudiante}}</p>
+      <p>D.N.I. N.° {{dni_estudiante}}</p>
+      <div class="firma-linea"></div>
+      <p>Firma</p>
+    </div>
+  </div>
+
+  <!-- ══════════════ ANEXO A ══════════════ -->
+  <div class="page-break"></div>
+
+  <h1>ANEXO A</h1>
+
+  <p class="titulo-azul">Facilidades de Pago para Kit de Material Didáctico</p>
+
+  <table class="resumen">
+    <tr><td>Monto del Kit</td><td>S/. {{wise_monto_kit}}</td></tr>
+    <tr><td>Cuota inicial</td><td>20%</td></tr>
+    <tr><td>Monto de cuota inicial</td><td>S/. {{cuota_inicial_monto}}</td></tr>
+    <tr><td>Monto a financiar</td><td>S/. {{monto_financiado}}</td></tr>
+    <tr><td>Plazo meses</td><td>{{numero_cuotas}}</td></tr>
+    <tr><td>Fecha</td><td>{{fecha_firma_corta}}</td></tr>
+    <tr><td>Cuota mensual</td><td>S/. {{cuota_mensual}}</td></tr>
+  </table>
+
+  <p class="titulo-azul">CRONOGRAMA DE PAGOS CUOTA FIJA</p>
+
+  <table class="cronograma">
+    <thead>
+      <tr>
+        <th>N°</th>
+        <th>FECHA</th>
+        <th>CUOTA</th>
+        <th>SALDO</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{cronograma_html}}
+    </tbody>
+    <tfoot>
+      <tr>
+        <td colspan="2"><strong>TOTAL</strong></td>
+        <td><strong>S/. {{monto_financiado}}</strong></td>
+        <td></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <div class="firma-bloque" style="margin-top: 60px;">
+    <div class="firma-columna">
+      <p><strong>EL ESTUDIANTE</strong></p>
+      <p>{{nombre_estudiante}}</p>
+      <p>D.N.I. N.° {{dni_estudiante}}</p>
+      <div class="firma-linea"></div>
+      <p>Firma</p>
+    </div>
+  </div>
+
+</body>
+</html>

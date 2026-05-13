@@ -1,0 +1,115 @@
+{
+  "name": "WISE UP — Contrato Facilidades de Pago",
+  "description": "Recibe datos del bot WhatsApp → genera PDF desde plantilla HTML → sube a Google Drive → responde con URL al bot",
+  "flujo_datos": "WhatsApp → agente-contratos.js (puerto 3000) → Make.com webhook → generar-pdf.js (puerto 3001) → Google Drive → pdf_url → WhatsApp",
+
+  "flow": [
+    {
+      "id": 1,
+      "module": "gateway:CustomWebHook",
+      "name": "1. Recibir datos del bot",
+      "metadata": { "designer": { "x": 0, "y": 0 } },
+      "parameters": {
+        "hook": "PEGAR_AQUI_EL_ID_DEL_WEBHOOK_DE_MAKE"
+      },
+      "estructura_recibida": {
+        "tipo": "facilidades",
+        "telefono": "51999999999",
+        "timestamp": "2026-05-12T10:00:00.000Z",
+        "datos": {
+          "nombre_estudiante": "ORRILLO BARRANTES Freed Josué",
+          "dni_estudiante": "70765488",
+          "domicilio_estudiante": "Av. Canto Grande 2529",
+          "telefono_estudiante": "999999999",
+          "email_estudiante": "freed.orrillo@gmail.com",
+          "numero_cuotas": "6",
+          "fecha_firma": "27/04/2026",
+          "fecha_firma_larga": "27 días del mes de abril de 2026",
+          "fecha_firma_corta": "04/27/26",
+          "cuota_inicial_monto": "536.80",
+          "monto_financiado": "2147.20",
+          "cuota_mensual": "357.87",
+          "cronograma_html": "<tr>...</tr>",
+          "wise_razon_social": "PRIMERA WISE UP LATAM S.A.C.",
+          "wise_ruc": "20614854261"
+        }
+      },
+      "nota": "Make.com genera una URL única al crear el webhook. Esa URL va en el .env como MAKE_WEBHOOK"
+    },
+    {
+      "id": 2,
+      "module": "http:ActionSendData",
+      "name": "2. Llamar al generador de PDF",
+      "metadata": { "designer": { "x": 300, "y": 0 } },
+      "parameters": {
+        "url": "https://TU-SERVIDOR.com/generar-pdf",
+        "method": "POST",
+        "headers": [
+          { "name": "Content-Type", "value": "application/json" }
+        ],
+        "bodyType": "raw",
+        "body": "{\"tipo\": \"{{1.tipo}}\", \"datos\": {{toJSON(1.datos)}}}",
+        "parseResponse": true
+      },
+      "respuesta_esperada": {
+        "success": true,
+        "pdf_base64": "<string base64>",
+        "nombre_archivo": "Contrato_facilidades_1715000000000.pdf"
+      },
+      "nota": "generar-pdf.js debe estar corriendo en el mismo servidor en el puerto 3001 (npm run pdf). Reemplaza TU-SERVIDOR.com con tu dominio o IP pública."
+    },
+    {
+      "id": 3,
+      "module": "google-drive:ActionUploadAFile",
+      "name": "3. Subir PDF a Google Drive",
+      "metadata": { "designer": { "x": 600, "y": 0 } },
+      "parameters": {
+        "folderId": "ID_DE_TU_CARPETA_EN_GOOGLE_DRIVE",
+        "fileName": "Contrato_Facilidades_{{1.datos.dni_estudiante}}_{{formatDate(now; 'YYYYMMDD')}}.pdf",
+        "data": "{{2.pdf_base64}}",
+        "mimeType": "application/pdf",
+        "convert": false
+      },
+      "nota": "Abre Google Drive → clic derecho en la carpeta destino → Obtener enlace → copia el ID de la URL (la parte larga después de /folders/)"
+    },
+    {
+      "id": 4,
+      "module": "google-drive:ActionCreateSharedLink",
+      "name": "4. Generar enlace público del PDF",
+      "metadata": { "designer": { "x": 900, "y": 0 } },
+      "parameters": {
+        "fileId": "{{3.id}}",
+        "role": "reader",
+        "type": "anyone"
+      }
+    },
+    {
+      "id": 5,
+      "module": "gateway:CustomWebHookResponse",
+      "name": "5. Responder al bot con la URL del PDF",
+      "metadata": { "designer": { "x": 1200, "y": 0 } },
+      "parameters": {
+        "status": 200,
+        "body": {
+          "pdf_url": "{{4.webViewLink}}"
+        },
+        "headers": [
+          { "name": "Content-Type", "value": "application/json" }
+        ]
+      },
+      "nota": "El bot recibe pdf_url y la envía al usuario por WhatsApp como documento"
+    }
+  ],
+
+  "instrucciones_make": {
+    "paso_1": "make.com → Crear escenario → clic en '+' para agregar módulo",
+    "paso_2": "Módulo 1: Webhooks → Custom Webhook → crear → copiar la URL → pegarla en .env como MAKE_WEBHOOK",
+    "paso_3": "Módulo 2: HTTP → Make a request → completar con URL de tu servidor /generar-pdf",
+    "paso_4": "En el body del Módulo 2 usar bodyType=raw y el JSON indicado arriba con toJSON()",
+    "paso_5": "Módulo 3: Google Drive → Upload a File → conectar cuenta Google → pegar ID de carpeta",
+    "paso_6": "Módulo 4: Google Drive → Create a Shared Link → fileId = output del módulo 3",
+    "paso_7": "Módulo 5: Webhooks → Webhook Response → status 200 → body con pdf_url",
+    "paso_8": "Activar el escenario con el toggle ON (esquina superior derecha)"
+  }
+}
+
