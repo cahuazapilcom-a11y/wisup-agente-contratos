@@ -89,6 +89,10 @@ function validarCuotas(valor) {
   return [6, 12, 18].includes(n);
 }
 
+function validarDNI(valor) {
+  return /^\d{8}$/.test(valor);
+}
+
 // ─── CALCULOS FINANCIEROS ────────────────────────────────────
 function calcularFinanzas(numero_cuotas) {
   const cuota_inicial_monto = +(WISE_UP.monto_kit * WISE_UP.porcentaje_ini).toFixed(2);
@@ -436,6 +440,12 @@ async function agente(tel, texto, nombre = "") {
     // Guardar el dato recibido
     let valor = normalizar(faltante.key, texto);
 
+    // Validar DNI
+    if (faltante.key === "dni_estudiante" && !validarDNI(valor)) {
+      await enviarTexto(tel, "❌ El DNI debe tener exactamente *8 dígitos numéricos*. Ingresa nuevamente:");
+      return;
+    }
+
     // Validar numero de cuotas
     if (faltante.key === "numero_cuotas" && !validarCuotas(valor)) {
       await enviarTexto(tel, "❌ Solo se aceptan *6*, *12* o *18* cuotas. ¿Cuántas cuotas prefiere el estudiante?");
@@ -595,6 +605,10 @@ async function agente(tel, texto, nombre = "") {
   // ── ESTADO: EDITANDO ──────────────────────────────────────
   if (s.estado === "editando") {
     let valor = normalizar(s.campoEditando, texto);
+    if (s.campoEditando === "dni_estudiante" && !validarDNI(valor)) {
+      await enviarTexto(tel, "❌ El DNI debe tener exactamente *8 dígitos numéricos*. Ingresa nuevamente:");
+      return;
+    }
     if (s.campoEditando === "numero_cuotas" && !validarCuotas(valor)) {
       await enviarTexto(tel, "❌ Solo se aceptan *6*, *12* o *18* cuotas. Ingresa nuevamente:");
       return;
