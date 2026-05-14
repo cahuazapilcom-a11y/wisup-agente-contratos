@@ -426,6 +426,20 @@ async function agente(tel, texto, nombre = "") {
         s.estado = "completado";
         limpiarSesion(tel);
 
+        // Registro en Google Sheets via Make.com
+        const SHEETS_WEBHOOK = "https://hook.us2.make.com/upmgkie9tkar8e6fp4rug5etojweoa76";
+        axios.post(SHEETS_WEBHOOK, {
+          fecha:         new Date().toLocaleDateString("es-PE"),
+          nombre:        s.datos.nombre_estudiante,
+          dni:           s.datos.dni_estudiante,
+          telefono:      s.datos.telefono_estudiante,
+          email:         s.datos.email_estudiante,
+          domicilio:     s.datos.domicilio_estudiante,
+          cuotas:        s.datos.numero_cuotas,
+          cuota_mensual: fin.cuota_mensual.toFixed(2),
+          monto_total:   WISE_UP.monto_kit.toFixed(2),
+        }).catch(e => console.error("[SHEETS] Error:", e.message));
+
         // Notificación al asesor
         const ASESOR_TEL = "51918156548";
         const msgAsesor =
