@@ -58,6 +58,9 @@ const WISE_UP = {
 // ─── MEMORIA DE SESIONES (RGPD: se borra al finalizar) ───────
 const sessions = new Map();
 
+// ─── ALMACÉN TEMPORAL DE PDFs ────────────────────────────────
+const pdfStore = new Map(); // id → { buffer, filename, expiry }
+
 // ─── CAMPOS DEL CONTRATO DE FACILIDADES ──────────────────────
 const CAMPOS_FACILIDADES = [
   { key: "nombre_estudiante",   label: "Nombre completo del estudiante (apellidos y nombres)" },
@@ -179,9 +182,10 @@ async function enviarPDF(tel, url, nombre) {
   );
 }
 
-// ─── GENERAR PDF VIA GOTENBERG Y SUBIR A TRANSFER.SH ─────────
+// ─── GENERAR PDF VIA GOTENBERG Y SERVIR DESDE ESTE SERVIDOR ──
 async function generarYSubirPDF(html_contrato, dni) {
   const FormData = require("form-data");
+  const { randomUUID } = require("crypto");
 
   // 1. Generar PDF con Gotenberg
   console.log("[PDF] Llamando a Gotenberg...");
@@ -204,29 +208,18 @@ async function generarYSubirPDF(html_contrato, dni) {
     throw e;
   }
 
-  // 2. Subir PDF a 0x0.st
-  console.log("[PDF] Subiendo a 0x0.st...");
-  const FormData2 = require("form-data");
-  const form2 = new FormData2();
-  form2.append("file", Buffer.from(pdfRes.data), {
-    filename: `Contrato_${dni}.pdf`,
-    contentType: "application/pdf",
-  });
+  // 2. Guardar PDF en memoria y generar URL propia
+  const id = randomUUID();
+  const filename = `Contrato_${dni}.pdf`;
+  const expiry = Date.now() + 15 * 60 * 1000; // 15 minutos
+  pdfStore.set(id, { buffer: Buffer.from(pdfRes.data), filename, expiry });
 
-  let uploadRes;
-  try {
-    uploadRes = await axios.post("https://0x0.st", form2, {
-      headers: form2.getHeaders(),
-      timeout: 30000,
-    });
-    console.log("[PDF] 0x0.st respuesta:", uploadRes.data);
-  } catch (e) {
-    console.error("[PDF] 0x0.st error:", e.response?.status, e.message);
-    throw e;
-  }
+  // Limpiar entrada cuando expire
+  setTimeout(() => pdfStore.delete(id), 15 * 60 * 1000);
 
-  const url = uploadRes.data.trim();
-  if (!url.startsWith("https://")) throw new Error("URL inválida: " + url);
+  const baseUrl = process.env.BASE_URL || `https://agente-contratos.onrender.com`;
+  const url = `${baseUrl}/pdf/${id}`;
+  console.log("[PDF] URL propia generada:", url);
   return url;
 }
 
@@ -444,6 +437,18 @@ function menuPrincipal() {
     `¿Cuál es el *nombre completo del estudiante* (apellidos y nombres)?`
   );
 }
+
+// ─── ENDPOINT PARA SERVIR PDFs TEMPORALES ────────────────────
+app.get("/pdf/:id", (req, res) => {
+  const entry = pdfStore.get(req.params.id);
+  if (!entry || Date.now() > entry.expiry) {
+    pdfStore.delete(req.params.id);
+    return res.status(404).send("PDF no encontrado o expirado");
+  }
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `inline; filename="${entry.filename}"`);
+  res.send(entry.buffer);
+});
 
 // ─── WEBHOOK DE WHATSAPP (META) ───────────────────────────────
 app.get("/webhook", (req, res) => {
