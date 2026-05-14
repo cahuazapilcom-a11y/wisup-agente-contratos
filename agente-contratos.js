@@ -183,20 +183,24 @@ async function enviarPDF(tel, url, nombre) {
 async function generarYSubirPDF(html_contrato, dni) {
   const FormData = require("form-data");
 
-  // 1. Generar PDF con Gotenberg (servicio público gratuito)
+  // 1. Generar PDF con Gotenberg
   const form1 = new FormData();
-  form1.append("files", Buffer.from(html_contrato), {
+  form1.append("files", Buffer.from(html_contrato, "utf-8"), {
     filename: "index.html",
-    contentType: "text/html",
+    contentType: "text/html; charset=utf-8",
   });
+  form1.append("marginTop", "0.5");
+  form1.append("marginBottom", "0.5");
+  form1.append("marginLeft", "0.5");
+  form1.append("marginRight", "0.5");
 
   const pdfRes = await axios.post(
     "https://demo.gotenberg.dev/forms/chromium/convert/html",
     form1,
-    { headers: form1.getHeaders(), responseType: "arraybuffer" }
+    { headers: form1.getHeaders(), responseType: "arraybuffer", timeout: 30000 }
   );
 
-  // 2. Subir PDF a file.io (enlace temporal de 1 día)
+  // 2. Subir PDF a file.io
   const form2 = new FormData();
   form2.append("file", Buffer.from(pdfRes.data), {
     filename: `Contrato_${dni}.pdf`,
@@ -205,8 +209,10 @@ async function generarYSubirPDF(html_contrato, dni) {
 
   const uploadRes = await axios.post("https://file.io/?expires=1d", form2, {
     headers: form2.getHeaders(),
+    timeout: 15000,
   });
 
+  if (!uploadRes.data.success) throw new Error("file.io upload failed");
   return uploadRes.data.link;
 }
 
