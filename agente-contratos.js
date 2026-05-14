@@ -255,7 +255,7 @@ async function enviarEmailConPDF(destinatario, nombre, pdfBuffer, dni) {
     subject: "Tu Contrato de Facilidades de Pago — WISE UP",
     content: [{
       type: "text/html",
-      value: `<p>Estimado/a <strong>${nombre}</strong>,</p>
+      value: `<p>Estimado/a <strong>${nombre.split(" ").slice(-2).join(" ")}</strong>,</p>
               <p>Adjunto encontrarás tu <strong>Contrato de Facilidades de Pago</strong> del Kit de Material Didáctico WISE UP.</p>
               <p>Ante cualquier consulta comunícate con tu asesor.</p>
               <br><p><strong>WISE UP LATAM S.A.C.</strong></p>`
