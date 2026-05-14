@@ -400,9 +400,10 @@ async function agente(tel, texto, nombre = "") {
   const input = texto.trim().toLowerCase();
 
   if (!sessions.has(tel)) {
-    sessions.set(tel, { estado: "inicio", datos: {}, campoActual: 0 });
+    sessions.set(tel, { estado: "inicio", datos: {}, campoActual: 0, reintentos: {} });
   }
   const s = sessions.get(tel);
+  if (!s.reintentos) s.reintentos = {};
 
   // ── COMANDOS GLOBALES ─────────────────────────────────────
   if (["cancelar", "cancel", "reiniciar", "salir"].includes(input)) {
@@ -440,17 +441,34 @@ async function agente(tel, texto, nombre = "") {
     // Guardar el dato recibido
     let valor = normalizar(faltante.key, texto);
 
+    const MAX_REINTENTOS = 3;
+
     // Validar DNI
     if (faltante.key === "dni_estudiante" && !validarDNI(valor)) {
-      await enviarTexto(tel, "❌ El DNI debe tener exactamente *8 dígitos numéricos*. Ingresa nuevamente:");
+      s.reintentos[faltante.key] = (s.reintentos[faltante.key] || 0) + 1;
+      if (s.reintentos[faltante.key] >= MAX_REINTENTOS) {
+        sessions.delete(tel);
+        await enviarTexto(tel, "❌ Demasiados intentos fallidos. Transfiriendo a un asesor WISE UP...\nEscribe *HOLA* para intentar nuevamente.");
+        return;
+      }
+      await enviarTexto(tel, `❌ El DNI debe tener exactamente *8 dígitos numéricos*. Intento ${s.reintentos[faltante.key]}/${MAX_REINTENTOS}. Ingresa nuevamente:`);
       return;
     }
 
     // Validar numero de cuotas
     if (faltante.key === "numero_cuotas" && !validarCuotas(valor)) {
-      await enviarTexto(tel, "❌ Solo se aceptan *6*, *12* o *18* cuotas. ¿Cuántas cuotas prefiere el estudiante?");
+      s.reintentos[faltante.key] = (s.reintentos[faltante.key] || 0) + 1;
+      if (s.reintentos[faltante.key] >= MAX_REINTENTOS) {
+        sessions.delete(tel);
+        await enviarTexto(tel, "❌ Demasiados intentos fallidos. Transfiriendo a un asesor WISE UP...\nEscribe *HOLA* para intentar nuevamente.");
+        return;
+      }
+      await enviarTexto(tel, `❌ Solo se aceptan *6*, *12* o *18* cuotas. Intento ${s.reintentos[faltante.key]}/${MAX_REINTENTOS}. Ingresa nuevamente:`);
       return;
     }
+
+    // Resetear reintentos al ingresar dato válido
+    s.reintentos[faltante.key] = 0;
 
     s.datos[faltante.key] = valor;
 
