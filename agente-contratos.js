@@ -284,6 +284,103 @@ async function llamarMake(payload) {
   return res.data;
 }
 
+// ─── DOCUSIGN: JWT AUTH + ENVIAR SOBRE PARA FIRMA ────────────
+async function enviarADocuSign(pdfBuffer, datos) {
+  const crypto = require("crypto");
+
+  const DS_INTEGRATION_KEY = process.env.DOCUSIGN_INTEGRATION_KEY;
+  const DS_USER_ID         = process.env.DOCUSIGN_USER_ID;
+  const DS_ACCOUNT_ID      = process.env.DOCUSIGN_ACCOUNT_ID;
+  const DS_PRIVATE_KEY     = process.env.DOCUSIGN_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const DS_BASE_URI        = "https://demo.docusign.net";
+
+  if (!DS_INTEGRATION_KEY || !DS_USER_ID || !DS_ACCOUNT_ID || !DS_PRIVATE_KEY) {
+    console.log("[DOCUSIGN] Variables no configuradas, omitiendo firma digital.");
+    return null;
+  }
+
+  // 1. Crear JWT
+  const now = Math.floor(Date.now() / 1000);
+  const header  = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
+  const payload = Buffer.from(JSON.stringify({
+    iss: DS_INTEGRATION_KEY,
+    sub: DS_USER_ID,
+    aud: "account-d.docusign.com",
+    iat: now,
+    exp: now + 3600,
+    scope: "signature impersonation",
+  })).toString("base64url");
+
+  const sign = crypto.createSign("RSA-SHA256");
+  sign.update(`${header}.${payload}`);
+  const signature = sign.sign(DS_PRIVATE_KEY, "base64url");
+  const jwt = `${header}.${payload}.${signature}`;
+
+  // 2. Obtener access token
+  let accessToken;
+  try {
+    const tokenRes = await axios.post(
+      "https://account-d.docusign.com/oauth/token",
+      new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
+      { headers: { "Content-Type": "application/x-www-form-urlencoded" } }
+    );
+    accessToken = tokenRes.data.access_token;
+    console.log("[DOCUSIGN] Token obtenido OK");
+  } catch (e) {
+    console.error("[DOCUSIGN] Error obteniendo token:", e.response?.data || e.message);
+    return null;
+  }
+
+  // 3. Crear envelope con el PDF
+  const pdfBase64 = pdfBuffer.toString("base64");
+  const envelope = {
+    emailSubject: "Firma tu Contrato de Facilidades de Pago — WISE UP",
+    emailBlurb: `Estimado/a ${datos.nombre_estudiante}, por favor firma tu contrato haciendo clic en el enlace.`,
+    documents: [{
+      documentBase64: pdfBase64,
+      name: `Contrato_Facilidades_${datos.dni_estudiante}.pdf`,
+      fileExtension: "pdf",
+      documentId: "1",
+    }],
+    recipients: {
+      signers: [{
+        email: datos.email_estudiante,
+        name: datos.nombre_estudiante,
+        recipientId: "1",
+        routingOrder: "1",
+        tabs: {
+          signHereTabs: [{
+            anchorString: "Firma del Estudiante",
+            anchorUnits: "pixels",
+            anchorXOffset: "0",
+            anchorYOffset: "20",
+          }],
+          dateSignedTabs: [{
+            anchorString: "Fecha de Firma",
+            anchorUnits: "pixels",
+            anchorXOffset: "0",
+            anchorYOffset: "20",
+          }],
+        },
+      }],
+    },
+    status: "sent",
+  };
+
+  try {
+    const envRes = await axios.post(
+      `${DS_BASE_URI}/restapi/v2.1/accounts/${DS_ACCOUNT_ID}/envelopes`,
+      envelope,
+      { headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" } }
+    );
+    console.log("[DOCUSIGN] Envelope enviado, ID:", envRes.data.envelopeId);
+    return envRes.data.envelopeId;
+  } catch (e) {
+    console.error("[DOCUSIGN] Error creando envelope:", e.response?.data || e.message);
+    return null;
+  }
+}
+
 // ─── LIMPIAR SESION (RGPD — 5 min) ──────────────────────────
 function limpiarSesion(tel) {
   setTimeout(() => {
@@ -422,6 +519,16 @@ async function agente(tel, texto, nombre = "") {
         await enviarPDF(tel, pdf_url, `Contrato_Facilidades_${s.datos.dni_estudiante}.pdf`);
         enviarEmailConPDF(s.datos.email_estudiante, s.datos.nombre_estudiante, pdfBuffer, s.datos.dni_estudiante)
           .catch(e => console.error("[EMAIL] fallo silencioso:", e.message));
+
+        // Enviar a DocuSign para firma digital
+        enviarADocuSign(pdfBuffer, s.datos).then(envelopeId => {
+          if (envelopeId) {
+            enviarTexto(tel,
+              `✍️ *Firma digital enviada*\n\nHemos enviado un correo a *${s.datos.email_estudiante}* con el enlace para firmar el contrato digitalmente.\n\n_Revisa tu bandeja de entrada (o spam)._`
+            ).catch(() => {});
+          }
+        }).catch(e => console.error("[DOCUSIGN] fallo silencioso:", e.message));
+
         await enviarTexto(tel, "✅ *¡Contrato generado exitosamente!*\n\n¿Necesitas algo más?\n• *NUEVO* — generar otro contrato\n• *AGENTE* — hablar con un asesor");
         s.estado = "completado";
         limpiarSesion(tel);
