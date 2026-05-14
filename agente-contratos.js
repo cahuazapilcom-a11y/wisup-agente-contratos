@@ -204,25 +204,24 @@ async function generarYSubirPDF(html_contrato, dni) {
     throw e;
   }
 
-  // 2. Subir PDF a transfer.sh
-  console.log("[PDF] Subiendo a transfer.sh...");
+  // 2. Subir PDF a 0x0.st
+  console.log("[PDF] Subiendo a 0x0.st...");
+  const FormData2 = require("form-data");
+  const form2 = new FormData2();
+  form2.append("file", Buffer.from(pdfRes.data), {
+    filename: `Contrato_${dni}.pdf`,
+    contentType: "application/pdf",
+  });
+
   let uploadRes;
   try {
-    uploadRes = await axios.put(
-      `https://transfer.sh/Contrato_${dni}.pdf`,
-      Buffer.from(pdfRes.data),
-      {
-        headers: {
-          "Content-Type": "application/pdf",
-          "Max-Downloads": "10",
-          "Max-Days": "3",
-        },
-        timeout: 30000,
-      }
-    );
-    console.log("[PDF] transfer.sh respuesta:", uploadRes.data);
+    uploadRes = await axios.post("https://0x0.st", form2, {
+      headers: form2.getHeaders(),
+      timeout: 30000,
+    });
+    console.log("[PDF] 0x0.st respuesta:", uploadRes.data);
   } catch (e) {
-    console.error("[PDF] transfer.sh error:", e.response?.status, e.message);
+    console.error("[PDF] 0x0.st error:", e.response?.status, e.message);
     throw e;
   }
 
