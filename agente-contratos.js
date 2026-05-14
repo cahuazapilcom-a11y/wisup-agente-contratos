@@ -179,43 +179,55 @@ async function enviarPDF(tel, url, nombre) {
   );
 }
 
-// ─── GENERAR PDF VIA GOTENBERG Y SUBIR A FILEIO ──────────────
+// ─── GENERAR PDF VIA GOTENBERG Y SUBIR A TRANSFER.SH ─────────
 async function generarYSubirPDF(html_contrato, dni) {
   const FormData = require("form-data");
 
   // 1. Generar PDF con Gotenberg
+  console.log("[PDF] Llamando a Gotenberg...");
   const form1 = new FormData();
   form1.append("files", Buffer.from(html_contrato, "utf-8"), {
     filename: "index.html",
     contentType: "text/html; charset=utf-8",
   });
-  form1.append("marginTop", "0.5");
-  form1.append("marginBottom", "0.5");
-  form1.append("marginLeft", "0.5");
-  form1.append("marginRight", "0.5");
 
-  const pdfRes = await axios.post(
-    "https://demo.gotenberg.dev/forms/chromium/convert/html",
-    form1,
-    { headers: form1.getHeaders(), responseType: "arraybuffer", timeout: 30000 }
-  );
+  let pdfRes;
+  try {
+    pdfRes = await axios.post(
+      "https://demo.gotenberg.dev/forms/chromium/convert/html",
+      form1,
+      { headers: form1.getHeaders(), responseType: "arraybuffer", timeout: 60000 }
+    );
+    console.log("[PDF] Gotenberg OK, tamaño:", pdfRes.data.byteLength);
+  } catch (e) {
+    console.error("[PDF] Gotenberg error:", e.response?.status, e.response?.data?.toString(), e.message);
+    throw e;
+  }
 
-  // 2. Subir PDF a transfer.sh (upload directo, responde con URL en texto plano)
-  const uploadRes = await axios.put(
-    `https://transfer.sh/Contrato_${dni}.pdf`,
-    Buffer.from(pdfRes.data),
-    {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Max-Downloads": "10",
-        "Max-Days": "3",
-      },
-      timeout: 20000,
-    }
-  );
+  // 2. Subir PDF a transfer.sh
+  console.log("[PDF] Subiendo a transfer.sh...");
+  let uploadRes;
+  try {
+    uploadRes = await axios.put(
+      `https://transfer.sh/Contrato_${dni}.pdf`,
+      Buffer.from(pdfRes.data),
+      {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Max-Downloads": "10",
+          "Max-Days": "3",
+        },
+        timeout: 30000,
+      }
+    );
+    console.log("[PDF] transfer.sh respuesta:", uploadRes.data);
+  } catch (e) {
+    console.error("[PDF] transfer.sh error:", e.response?.status, e.message);
+    throw e;
+  }
 
   const url = uploadRes.data.trim();
-  if (!url.startsWith("https://")) throw new Error("Upload fallido: " + url);
+  if (!url.startsWith("https://")) throw new Error("URL inválida: " + url);
   return url;
 }
 
