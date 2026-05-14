@@ -200,20 +200,23 @@ async function generarYSubirPDF(html_contrato, dni) {
     { headers: form1.getHeaders(), responseType: "arraybuffer", timeout: 30000 }
   );
 
-  // 2. Subir PDF a file.io
-  const form2 = new FormData();
-  form2.append("file", Buffer.from(pdfRes.data), {
-    filename: `Contrato_${dni}.pdf`,
-    contentType: "application/pdf",
-  });
+  // 2. Subir PDF a transfer.sh (upload directo, responde con URL en texto plano)
+  const uploadRes = await axios.put(
+    `https://transfer.sh/Contrato_${dni}.pdf`,
+    Buffer.from(pdfRes.data),
+    {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Max-Downloads": "10",
+        "Max-Days": "3",
+      },
+      timeout: 20000,
+    }
+  );
 
-  const uploadRes = await axios.post("https://file.io/?expires=1d", form2, {
-    headers: form2.getHeaders(),
-    timeout: 15000,
-  });
-
-  if (!uploadRes.data.success) throw new Error("file.io upload failed");
-  return uploadRes.data.link;
+  const url = uploadRes.data.trim();
+  if (!url.startsWith("https://")) throw new Error("Upload fallido: " + url);
+  return url;
 }
 
 // ─── LLAMAR A MAKE.COM (notificación sin esperar PDF) ────────
