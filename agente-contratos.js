@@ -362,6 +362,21 @@ async function agente(tel, texto, nombre = "") {
         await enviarTexto(tel, "✅ *¡Contrato generado exitosamente!*\n\n¿Necesitas algo más?\n• *NUEVO* — generar otro contrato\n• *AGENTE* — hablar con un asesor");
         s.estado = "completado";
         limpiarSesion(tel);
+
+        // Notificación al asesor
+        const ASESOR_TEL = "51918156548";
+        const msgAsesor =
+          `🔔 *Nuevo contrato generado*\n\n` +
+          `👤 *Estudiante:* ${s.datos.nombre_estudiante}\n` +
+          `🪪 *DNI:* ${s.datos.dni_estudiante}\n` +
+          `📱 *Tel:* ${s.datos.telefono_estudiante}\n` +
+          `📧 *Email:* ${s.datos.email_estudiante}\n` +
+          `🏠 *Domicilio:* ${s.datos.domicilio_estudiante}\n\n` +
+          `💰 *Kit:* S/. ${WISE_UP.monto_kit.toFixed(2)}\n` +
+          `📥 *Cuota inicial:* S/. ${fin.cuota_inicial_monto.toFixed(2)}\n` +
+          `📅 *Cuotas:* ${s.datos.numero_cuotas} x S/. ${fin.cuota_mensual.toFixed(2)}\n` +
+          `📆 *Fecha firma:* ${s.datos.fecha_firma}`;
+        enviarTexto(ASESOR_TEL, msgAsesor).catch(e => console.error("[ASESOR] Error notificación:", e.message));
       } catch (err) {
         console.error("Error generando contrato:", err.message);
         await enviarTexto(tel, "❌ Error al generar el contrato. Escribe *AGENTE* para soporte humano.");
