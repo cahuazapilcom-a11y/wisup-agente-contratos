@@ -6,18 +6,16 @@
 
 require("dotenv").config();
 
-const express    = require("express");
-const axios      = require("axios");
-const puppeteer  = require("puppeteer-core");
-const chromium   = require("@sparticuz/chromium");
-const fs         = require("fs");
-const path       = require("path");
+const express = require("express");
+const axios   = require("axios");
+const fs      = require("fs");
+const path    = require("path");
 
 const app = express();
 app.use(express.json());
 
-// ─── GENERADOR DE PDF (integrado) ────────────────────────────
-async function generarPDF(tipo, datos) {
+// ─── RENDERIZAR HTML (sin Puppeteer — el PDF lo genera Make.com) ─
+function renderizarHTML(tipo, datos) {
   const rutaPlantilla = path.join(__dirname, "plantillas", `${tipo}.html`);
   if (!fs.existsSync(rutaPlantilla)) throw new Error(`Plantilla no encontrada: ${tipo}`);
 
@@ -28,39 +26,8 @@ async function generarPDF(tipo, datos) {
   Object.entries(datos).forEach(([key, valor]) => {
     html = html.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), valor || "—");
   });
-
-  const browser = await puppeteer.launch({
-    args: chromium.args,
-    defaultViewport: chromium.defaultViewport,
-    executablePath: await chromium.executablePath(),
-    headless: chromium.headless,
-  });
-  const page = await browser.newPage();
-  await page.setContent(html, { waitUntil: "domcontentloaded" });
-  const pdfBuffer = await page.pdf({
-    format: "A4",
-    margin: { top: "20mm", bottom: "20mm", left: "20mm", right: "20mm" },
-    printBackground: true,
-  });
-  await browser.close();
-  return pdfBuffer;
+  return html;
 }
-
-app.post("/generar-pdf", async (req, res) => {
-  const { tipo, datos } = req.body;
-  if (!tipo || !datos) return res.status(400).json({ error: "Faltan tipo y datos" });
-  try {
-    const pdfBuffer = await generarPDF(tipo, datos);
-    res.json({
-      success: true,
-      pdf_base64: pdfBuffer.toString("base64"),
-      nombre_archivo: `Contrato_${tipo}_${Date.now()}.pdf`,
-    });
-  } catch (err) {
-    console.error("Error PDF:", err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // ─── CONFIGURACION ───────────────────────────────────────────
 const CONFIG = {
@@ -313,11 +280,7 @@ async function agente(tel, texto) {
         const fecha_firma_larga = `${diaNum} días del mes de ${MESES_ES[mesNum]} de ${anioNum}`;
         const fecha_firma_corta = `${partesFecha[1]}/${diaNum}/${String(anioNum).slice(-2)}`;
 
-        const payload = {
-          tipo:     "facilidades",
-          telefono: tel,
-          timestamp: new Date().toISOString(),
-          datos: {
+        const datosContrato = {
             // Datos del estudiante
             ...s.datos,
             // Fechas formateadas
@@ -345,7 +308,17 @@ async function agente(tel, texto) {
             wise_cuenta_bcp:        WISE_UP.cuenta_bcp,
             wise_cci:               WISE_UP.cci,
             wise_monto_kit:         WISE_UP.monto_kit.toFixed(2),
-          },
+        };
+
+        // HTML ya renderizado — Make.com lo convierte a PDF sin necesitar Chromium en el servidor
+        const html_contrato = renderizarHTML("facilidades", { ...datosContrato });
+
+        const payload = {
+          tipo:          "facilidades",
+          telefono:      tel,
+          timestamp:     new Date().toISOString(),
+          html_contrato,
+          datos:         datosContrato,
         };
 
         const resultado = await llamarMake(payload);
