@@ -6,10 +6,58 @@
 
 require("dotenv").config();
 
-const express = require("express");
-const axios   = require("axios");
-const app     = express();
+const express    = require("express");
+const axios      = require("axios");
+const puppeteer  = require("puppeteer");
+const fs         = require("fs");
+const path       = require("path");
+
+const app = express();
 app.use(express.json());
+
+// ─── GENERADOR DE PDF (integrado) ────────────────────────────
+async function generarPDF(tipo, datos) {
+  const rutaPlantilla = path.join(__dirname, "plantillas", `${tipo}.html`);
+  if (!fs.existsSync(rutaPlantilla)) throw new Error(`Plantilla no encontrada: ${tipo}`);
+
+  let html = fs.readFileSync(rutaPlantilla, "utf-8");
+  datos.fecha_generacion = new Date().toLocaleDateString("es-PE", {
+    day: "2-digit", month: "long", year: "numeric",
+  });
+  Object.entries(datos).forEach(([key, valor]) => {
+    html = html.replace(new RegExp(`\\{\\{${key}\\}\\}`, "g"), valor || "—");
+  });
+
+  const browser = await puppeteer.launch({
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
+  const page = await browser.newPage();
+  await page.setContent(html, { waitUntil: "domcontentloaded" });
+  const pdfBuffer = await page.pdf({
+    format: "A4",
+    margin: { top: "20mm", bottom: "20mm", left: "20mm", right: "20mm" },
+    printBackground: true,
+  });
+  await browser.close();
+  return pdfBuffer;
+}
+
+app.post("/generar-pdf", async (req, res) => {
+  const { tipo, datos } = req.body;
+  if (!tipo || !datos) return res.status(400).json({ error: "Faltan tipo y datos" });
+  try {
+    const pdfBuffer = await generarPDF(tipo, datos);
+    res.json({
+      success: true,
+      pdf_base64: pdfBuffer.toString("base64"),
+      nombre_archivo: `Contrato_${tipo}_${Date.now()}.pdf`,
+    });
+  } catch (err) {
+    console.error("Error PDF:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ─── CONFIGURACION ───────────────────────────────────────────
 const CONFIG = {
