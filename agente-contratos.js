@@ -418,6 +418,18 @@ async function agente(tel, texto, nombre = "") {
   }
 
   // ── ESTADO: INICIO / ESPERANDO CONFIRMACIÓN PARA EMPEZAR ──
+  const saludos = ["hola", "hi", "hello", "ok", "oki", "okey", "buenas", "buenos dias",
+                   "buenas tardes", "buenas noches", "gracias", "esta bien", "está bien",
+                   "bien", "dale", "listo", "inicio", "start", "empezar", "comenzar"];
+  if (s.estado === "inicio" || saludos.some(s => input === s || input.startsWith(s))) {
+    if (s.estado !== "recopilando" && s.estado !== "confirmacion" &&
+        s.estado !== "corrigiendo" && s.estado !== "editando" && s.estado !== "generando") {
+      await enviarTexto(tel, menuPrincipal(nombre));
+      s.estado = "recopilando";
+      return;
+    }
+  }
+
   if (s.estado === "inicio") {
     await enviarTexto(tel, menuPrincipal(nombre));
     s.estado = "recopilando";
