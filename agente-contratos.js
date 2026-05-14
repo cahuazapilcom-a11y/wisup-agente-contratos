@@ -240,7 +240,7 @@ function limpiarSesion(tel) {
 }
 
 // ─── MOTOR DEL AGENTE ─────────────────────────────────────────
-async function agente(tel, texto) {
+async function agente(tel, texto, nombre = "") {
   const input = texto.trim().toLowerCase();
 
   if (!sessions.has(tel)) {
@@ -262,7 +262,7 @@ async function agente(tel, texto) {
 
   // ── ESTADO: INICIO / ESPERANDO CONFIRMACIÓN PARA EMPEZAR ──
   if (s.estado === "inicio") {
-    await enviarTexto(tel, menuPrincipal());
+    await enviarTexto(tel, menuPrincipal(nombre));
     s.estado = "recopilando";
     return;
   }
@@ -422,9 +422,10 @@ async function agente(tel, texto) {
 }
 
 // ─── MENU PRINCIPAL ───────────────────────────────────────────
-function menuPrincipal() {
+function menuPrincipal(nombre = "") {
+  const saludo = nombre ? `¡Hola, *${nombre}*! 👋` : "¡Hola! 👋";
   return (
-    "¡Hola! 👋 Soy el asistente de *WISE UP* 📚\n\n" +
+    `${saludo} Soy el asistente de *WISE UP* 📚\n\n` +
     "Voy a ayudarte a generar el *Contrato de Facilidades de Pago* para el Kit de Material Didáctico.\n\n" +
     "Necesitaré los siguientes datos del estudiante:\n\n" +
     "1. Nombre completo\n" +
@@ -468,13 +469,14 @@ app.post("/webhook", async (req, res) => {
 
     const msg = value.messages[0];
     const tel = msg.from;
+    const nombre = value.contacts?.[0]?.profile?.name || "";
 
     if (msg.type !== "text") {
       await enviarTexto(tel, "Solo proceso texto por ahora 😊 Escribe *HOLA* para empezar.");
       return;
     }
 
-    await agente(tel, msg.text.body);
+    await agente(tel, msg.text.body, nombre);
 
   } catch (err) {
     console.error("Webhook error:", err.message);
