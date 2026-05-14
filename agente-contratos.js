@@ -152,10 +152,7 @@ function resumenContrato(datos) {
     `💳 *Monto a financiar:* S/. ${fin.monto_financiado.toFixed(2)}\n` +
     `📅 *Plazo:* ${datos.numero_cuotas} cuotas de S/. ${fin.cuota_mensual.toFixed(2)}\n` +
     `📆 *Fecha de firma:* ${datos.fecha_firma}\n\n` +
-    `¿Son correctos estos datos?\n` +
-    `✅ Escribe *SI* para generar el contrato\n` +
-    `✏️ Escribe *NO* para corregir\n` +
-    `🔁 Escribe *CANCELAR* para empezar de nuevo`
+    `¿Son correctos estos datos?`
   );
 }
 
@@ -164,6 +161,29 @@ async function enviarTexto(tel, texto) {
   return axios.post(
     `https://graph.facebook.com/v19.0/${CONFIG.WA_PHONE_ID}/messages`,
     { messaging_product: "whatsapp", to: tel, type: "text", text: { body: texto } },
+    { headers: { Authorization: `Bearer ${CONFIG.WA_TOKEN}` } }
+  );
+}
+
+// ─── ENVIAR BOTONES INTERACTIVOS ─────────────────────────────
+async function enviarBotones(tel, texto, botones) {
+  return axios.post(
+    `https://graph.facebook.com/v19.0/${CONFIG.WA_PHONE_ID}/messages`,
+    {
+      messaging_product: "whatsapp",
+      to: tel,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: texto },
+        action: {
+          buttons: botones.map(b => ({
+            type: "reply",
+            reply: { id: b.id, title: b.title }
+          }))
+        }
+      }
+    },
     { headers: { Authorization: `Bearer ${CONFIG.WA_TOKEN}` } }
   );
 }
@@ -220,7 +240,42 @@ async function generarYSubirPDF(html_contrato, dni) {
   const baseUrl = process.env.BASE_URL || `https://agente-contratos.onrender.com`;
   const url = `${baseUrl}/pdf/${id}`;
   console.log("[PDF] URL propia generada:", url);
-  return url;
+  return { url, buffer: pdfStore.get(id).buffer };
+}
+
+// ─── ENVIAR EMAIL CON PDF VIA SENDGRID ───────────────────────
+async function enviarEmailConPDF(destinatario, nombre, pdfBuffer, dni) {
+  const SENDGRID_API_KEY = process.env.SENDGRID_API_KEY;
+  if (!SENDGRID_API_KEY) return;
+
+  const pdfBase64 = pdfBuffer.toString("base64");
+  const payload = {
+    personalizations: [{ to: [{ email: destinatario, name: nombre }] }],
+    from: { email: "cahuazapilcom@gmail.com", name: "WISE UP LATAM" },
+    subject: "Tu Contrato de Facilidades de Pago — WISE UP",
+    content: [{
+      type: "text/html",
+      value: `<p>Estimado/a <strong>${nombre}</strong>,</p>
+              <p>Adjunto encontrarás tu <strong>Contrato de Facilidades de Pago</strong> del Kit de Material Didáctico WISE UP.</p>
+              <p>Ante cualquier consulta comunícate con tu asesor.</p>
+              <br><p><strong>WISE UP LATAM S.A.C.</strong></p>`
+    }],
+    attachments: [{
+      content: pdfBase64,
+      type: "application/pdf",
+      filename: `Contrato_Facilidades_${dni}.pdf`,
+      disposition: "attachment"
+    }]
+  };
+
+  try {
+    await axios.post("https://api.sendgrid.com/v3/mail/send", payload, {
+      headers: { Authorization: `Bearer ${SENDGRID_API_KEY}`, "Content-Type": "application/json" }
+    });
+    console.log("[EMAIL] Enviado a:", destinatario);
+  } catch (e) {
+    console.error("[EMAIL] Error:", e.response?.data || e.message);
+  }
 }
 
 // ─── LLAMAR A MAKE.COM (notificación sin esperar PDF) ────────
@@ -274,7 +329,10 @@ async function agente(tel, texto, nombre = "") {
 
     if (!faltante) {
       s.estado = "confirmacion";
-      await enviarTexto(tel, resumenContrato(s.datos));
+      await enviarBotones(tel, resumenContrato(s.datos), [
+        { id: "SI", title: "Confirmar" },
+        { id: "NO", title: "Corregir" },
+      ]).catch(() => enviarTexto(tel, resumenContrato(s.datos)));
       return;
     }
 
@@ -296,7 +354,10 @@ async function agente(tel, texto, nombre = "") {
       await enviarTexto(tel, `✅ Anotado. [${prog}]\n\n¿Cuál es el/la *${siguiente.label}*?`);
     } else {
       s.estado = "confirmacion";
-      await enviarTexto(tel, resumenContrato(s.datos));
+      await enviarBotones(tel, resumenContrato(s.datos), [
+        { id: "SI", title: "Confirmar" },
+        { id: "NO", title: "Corregir" },
+      ]).catch(() => enviarTexto(tel, resumenContrato(s.datos)));
     }
     return;
   }
@@ -356,9 +417,11 @@ async function agente(tel, texto, nombre = "") {
 
         // Generar HTML y subir PDF directamente sin Make.com
         const html_contrato = renderizarHTML("facilidades", { ...datosContrato });
-        const pdf_url = await generarYSubirPDF(html_contrato, s.datos.dni_estudiante);
+        const { url: pdf_url, buffer: pdfBuffer } = await generarYSubirPDF(html_contrato, s.datos.dni_estudiante);
 
         await enviarPDF(tel, pdf_url, `Contrato_Facilidades_${s.datos.dni_estudiante}.pdf`);
+        enviarEmailConPDF(s.datos.email_estudiante, s.datos.nombre_estudiante, pdfBuffer, s.datos.dni_estudiante)
+          .catch(e => console.error("[EMAIL] fallo silencioso:", e.message));
         await enviarTexto(tel, "✅ *¡Contrato generado exitosamente!*\n\n¿Necesitas algo más?\n• *NUEVO* — generar otro contrato\n• *AGENTE* — hablar con un asesor");
         s.estado = "completado";
         limpiarSesion(tel);
@@ -486,12 +549,17 @@ app.post("/webhook", async (req, res) => {
     const tel = msg.from;
     const nombre = value.contacts?.[0]?.profile?.name || "";
 
-    if (msg.type !== "text") {
+    let textoMensaje;
+    if (msg.type === "text") {
+      textoMensaje = msg.text.body;
+    } else if (msg.type === "interactive") {
+      textoMensaje = msg.interactive?.button_reply?.id || msg.interactive?.list_reply?.id || "";
+    } else {
       await enviarTexto(tel, "Solo proceso texto por ahora 😊 Escribe *HOLA* para empezar.");
       return;
     }
 
-    await agente(tel, msg.text.body, nombre);
+    await agente(tel, textoMensaje, nombre);
 
   } catch (err) {
     console.error("Webhook error:", err.message);
