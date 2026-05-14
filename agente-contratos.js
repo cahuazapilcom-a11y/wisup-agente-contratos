@@ -179,25 +179,32 @@ async function enviarPDF(tel, url, nombre) {
   );
 }
 
-// ─── GENERAR PDF VIA html2pdf.app Y SUBIR A FILEIO ───────────
+// ─── GENERAR PDF VIA GOTENBERG Y SUBIR A FILEIO ──────────────
 async function generarYSubirPDF(html_contrato, dni) {
-  // 1. Generar PDF en binario
+  const FormData = require("form-data");
+
+  // 1. Generar PDF con Gotenberg (servicio público gratuito)
+  const form1 = new FormData();
+  form1.append("files", Buffer.from(html_contrato), {
+    filename: "index.html",
+    contentType: "text/html",
+  });
+
   const pdfRes = await axios.post(
-    "https://api.html2pdf.app/v1/generate",
-    { source: html_contrato },
-    { responseType: "arraybuffer" }
+    "https://demo.gotenberg.dev/forms/chromium/convert/html",
+    form1,
+    { headers: form1.getHeaders(), responseType: "arraybuffer" }
   );
 
-  // 2. Subir PDF a file.io (enlace temporal de 1 descarga)
-  const FormData = require("form-data");
-  const form = new FormData();
-  form.append("file", Buffer.from(pdfRes.data), {
+  // 2. Subir PDF a file.io (enlace temporal de 1 día)
+  const form2 = new FormData();
+  form2.append("file", Buffer.from(pdfRes.data), {
     filename: `Contrato_${dni}.pdf`,
     contentType: "application/pdf",
   });
 
-  const uploadRes = await axios.post("https://file.io/?expires=1d", form, {
-    headers: form.getHeaders(),
+  const uploadRes = await axios.post("https://file.io/?expires=1d", form2, {
+    headers: form2.getHeaders(),
   });
 
   return uploadRes.data.link;
