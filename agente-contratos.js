@@ -179,7 +179,31 @@ async function enviarPDF(tel, url, nombre) {
   );
 }
 
-// ─── LLAMAR A MAKE.COM ────────────────────────────────────────
+// ─── GENERAR PDF VIA html2pdf.app Y SUBIR A FILEIO ───────────
+async function generarYSubirPDF(html_contrato, dni) {
+  // 1. Generar PDF en binario
+  const pdfRes = await axios.post(
+    "https://api.html2pdf.app/v1/generate",
+    { source: html_contrato },
+    { responseType: "arraybuffer" }
+  );
+
+  // 2. Subir PDF a file.io (enlace temporal de 1 descarga)
+  const FormData = require("form-data");
+  const form = new FormData();
+  form.append("file", Buffer.from(pdfRes.data), {
+    filename: `Contrato_${dni}.pdf`,
+    contentType: "application/pdf",
+  });
+
+  const uploadRes = await axios.post("https://file.io/?expires=1d", form, {
+    headers: form.getHeaders(),
+  });
+
+  return uploadRes.data.link;
+}
+
+// ─── LLAMAR A MAKE.COM (notificación sin esperar PDF) ────────
 async function llamarMake(payload) {
   const res = await axios.post(CONFIG.MAKE_WEBHOOK, payload);
   return res.data;
@@ -310,31 +334,16 @@ async function agente(tel, texto) {
             wise_monto_kit:         WISE_UP.monto_kit.toFixed(2),
         };
 
-        // HTML ya renderizado — Make.com lo convierte a PDF sin necesitar Chromium en el servidor
+        // Generar HTML y subir PDF directamente sin Make.com
         const html_contrato = renderizarHTML("facilidades", { ...datosContrato });
+        const pdf_url = await generarYSubirPDF(html_contrato, s.datos.dni_estudiante);
 
-        const payload = {
-          tipo:          "facilidades",
-          telefono:      tel,
-          timestamp:     new Date().toISOString(),
-          html_contrato,
-          datos:         datosContrato,
-        };
-
-        const resultado = await llamarMake(payload);
-
-        if (resultado.pdf_url) {
-          await enviarPDF(tel, resultado.pdf_url, `Contrato_Facilidades_${s.datos.dni_estudiante}.pdf`);
-          let msg = "✅ *¡Contrato generado exitosamente!*\n\n";
-          if (resultado.firma_url)
-            msg += `🖊️ *Enlace de firma electrónica:*\n${resultado.firma_url}\n\n`;
-          msg += "¿Necesitas algo más?\n• *NUEVO* — generar otro contrato\n• *AGENTE* — hablar con un asesor";
-          await enviarTexto(tel, msg);
-          s.estado = "completado";
-          limpiarSesion(tel);
-        }
+        await enviarPDF(tel, pdf_url, `Contrato_Facilidades_${s.datos.dni_estudiante}.pdf`);
+        await enviarTexto(tel, "✅ *¡Contrato generado exitosamente!*\n\n¿Necesitas algo más?\n• *NUEVO* — generar otro contrato\n• *AGENTE* — hablar con un asesor");
+        s.estado = "completado";
+        limpiarSesion(tel);
       } catch (err) {
-        console.error("Error Make.com:", err.message);
+        console.error("Error generando contrato:", err.message);
         await enviarTexto(tel, "❌ Error al generar el contrato. Escribe *AGENTE* para soporte humano.");
       }
       return;
